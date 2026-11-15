@@ -1,0 +1,252 @@
+# racecar_full_assembly_tenth_scale_ur10e: grading notes and evidence for maintainers
+
+The grader (`verify.py`, started by `test.sh`) runs as root in a separate verifier sandbox from the task image; the
+agent never sees this folder. This note says what the grader does, how the fixed hidden set was chosen and how its
+freeze works, what the zero-cost evidence of development shows and what is left for the owner. The full development
+record (the design of record `DESIGN.md` v1.6, the phase 2 plan, the final state report `PHASE2_REPORT.md`, one record
+per work package, the independent phase 2 review `reviews/PHASE2_REVIEW.md` with the disposition of its findings,
+the evidence files) is in the dev workspace under
+`docs/plan/driving/tasks/racecar_full_assembly_tenth_scale_ur10e-dev/`. No value of the hidden set (seeds, layout
+digests, the bench plan, the oracle token) appears outside `hidden/`.
+
+## What is here
+
+| path | what |
+|---|---|
+| `test.sh` | closes the stage folder, builds the grader's root-owned copy of the givens (`/opt/arb`: `setup_payload/` + the image's task assets), starts `verify.py` |
+| `verify.py` | the grader: contract and route gates, the hidden kit (`gt/`), four episodes of `hidden/episodes.json` through the cell server and the runner, the score formula, the metrics |
+| `grader_config.json` | every knob: budgets, cameras and their draws, layout jitter, safety thresholds, scoring switches, the hidden kit's pin (`hidden_gt`) |
+| `anchor.json` | metric `assembly_score`, value 1.0, `full_at` 1.0 (the oracle's own score by construction) |
+| `arm/assembly_car/` | this task's cell: `coupling.py` (per-slot capture, pull home, lock, scrap, carrier voiding, the wheel stops), `cell.py`, `layout.py`, `bench_plan.py`, `fixtures.py`, `server.py` (public RPC, the token-only `reference_assemble`), `reference.py` + `reference_shop.py` + `car_grasps.py` (the privileged reference program), `render_twin.py`, `agent_render.py`, `agent_look.json` |
+| `arm/{assembly_cell, assembly_info, assembly_six, assembly_quad}/`, `robotics_grader/`, `common/`, `render/`, `render_filament/`, `room/`, `episode_trace.py`, `netguard.py` | vendored byte for byte from the benchmark's published assembly cells and kit (`netguard.py`: seccomp, no IP sockets for the agent's program) |
+| `hidden/` | `episodes.json` (the four graded episodes), `selection.json` (every candidate, run and decision of the selection, the dated amendment of its freeze rule and the recorded changes), `bench_plan.json`, `oracle_token.sha256` |
+| `review/select_set.py` | the pre-registered selection of the hidden set and its freeze check (a maintainer's tool; the grader never runs it) |
+| `review/observability.md` | the camera-only probe's summary, both rounds side by side (statistics only) |
+| `setup_payload/` | byte copy of `environment/setup/payload/` (the small givens: `kit.json`, the cell documents, the client library) |
+| `given_hashes.json` | sha256 of every file the grader's `/opt/arb` must hold |
+| `hidden_gt.url` of `grader_config.json` | where the hidden kit is: `verifier/gt.tar.xz` of the benchmark's asset dataset at commit `a6bfe73e80bc6ea336b91140f229ececc08fba6e` (the commit `environment/assets.sha256` pins for the givens); `verify.py` downloads it at verify start and checks the pinned sha256 and file count; it is never in the repository or an image. A maintainer's local copy (`ARB_HIDDEN_GT_TARBALL`, or `assets/gt.tar.xz` here, an engine asset root that no checkout has) is used instead under the same checks |
+
+## The score
+
+```
+counted(s)     = s LOCKED and design_ok at finalize, and neither its unit nor a unit in its carrier chain scrapped
+stage_e        = sum of counted weights / 11.5          (battery 1.0, deck 2.0, compute 1.0, LiDAR 1.5, four wheels 1.5 each)
+hard_ok_e      = 0 on a robot link above 30 N (pads excluded) or a unit pressed above 150 N for 0.2 s, else 1
+contract_ok    = assemble.py valid x step calls > 0 x clean run x no network x no late write / surviving process
+assembly_score = contract_ok x mean over the 4 episodes of stage_e x hard_ok_e      = reward (anchor 1.0)
+```
+
+A unit faster than 3 m/s or below the bench is scrapped (the episode goes on); a scrapped deck voids the compute
+module and the LiDAR fastened on it. Compute module and LiDAR fastened on the deck while it is still on its shelf count
+(`scoring.count_subassembly = true`; the cap of that route alone is 2.5 / 11.5 = 0.217); the lead designer kept this
+as designed. Everything else (ungated mean, per-slot mate rates, LOCKED_OFF, scrapped and voided counts, frames, sim
+and wall time, forces, illegal calls) goes to `metrics` only, all finite numbers.
+
+## The fixed hidden set, its freeze and determinism
+
+- **Rule** (`review/select_set.py`, module docstring; copied into `hidden/selection.json` before any candidate ran):
+  freeze, draw 12 candidates from `os.urandom` in four strata (the stand's yaw sign x the stick pack's lead end),
+  run each once in three environments (the development venv, the task image through `test.sh` / `verify.py` with the
+  oracle submission, a second machine with another CPU), keep a candidate only when every run has 8 / 8 mates LOCKED,
+  0 unplanned contacts, hard_ok, sustained force below 150 N, every capture within 50 % of its window and every loose
+  unit at least 30 % visible in the top camera; per stratum the first passing candidate in drawn order.
+- **Result** (drawn 2026-11-15T04:57:01Z): 11 of 12 candidates passed in all three environments; the one dropped
+  failed only the capture clause (the stick pack captured at 0.77 of its window) and only on the second CPU. The set
+  is c00-c03, the first candidate of each stratum. Hollowing check: 1 / 12 dropped, one cause, no mate class whose
+  kept capture ratios are better than the dropped ones by more than 0.10 of the window.
+- **Determinism.** Same CPU (development venv and task image): outcome fingerprints and episode traces identical for
+  12 / 12 candidates. Another CPU: not bit-identical (the first difference 9-16 s into an episode), outcomes identical
+  for 11 / 12. Acceptance verifies of the set in the image: 1.0 / 1.0, the same fingerprints and traces. The layout
+  digest of every episode is recomputed at every reset and compared with `episodes.json`; a mismatch is a task error.
+- **What invalidates the set: the frozen table as amended (A1, 2026-11-15).** The rule as drawn froze two files whose
+  bytes carry more than an episode's outcome (`grader_config.json` also holds the hidden kit's download location,
+  then still to be filled in at publication; the kit was frozen by its archive's bytes). Amendment A1, written into
+  `selection.json` (`amendments`) at 2026-11-15T14:50:36Z, before any file changed and after checking every frozen
+  file and tree against the draw, keeps the set and redefines the table: frozen is what determines an episode's
+  outcome. `verify.py`, `test.sh`, `netguard.py`, `episode_trace.py`, `hidden/bench_plan.json`,
+  `hidden/oracle_token.sha256`, the three files of `solution/` and the trees `arm/`, `common/`, `render/`,
+  `render_filament/`, `room/` and the given robot models stay frozen by their bytes; `grader_config.json` is frozen
+  by its values (`#values`: its canonical JSON without `hidden_gt.url`, `hidden_gt.sha256` and `hidden_gt.note`);
+  the hidden kit by its content (`gt.tar.xz#members`: the names and sha256 of its 14 620 file members). Recorded by
+  hash, never invalidating: that publication metadata (the archive's sha256, the url, its hash, the note) and the
+  files the agent reads (`instruction.md`, the setup payload, the asset list, the given parts, drawings, photo
+  manual and render assets, `setup_payload/`, `given_hashes.json`). `select_set.py check` applies the table in force
+  (a changed recorded entry is a note); `select_set.py record` enters recorded changes with their date and reason
+  (`recorded_changes`: the corrected cell manual, 2026-11-15T16:13:21Z; the phase 2 review's text fixes of the
+  instruction, the packing list and `assembly_layout.png`, 2026-11-15T20:24:13Z; the order statement's half-sentence
+  on the fixtures beside the car, 2026-11-15T22:26:03Z; the publication, 2026-11-15T22:33:35Z: the asset list's
+  revision and `hidden_gt.url` at the dataset commit, `hidden_gt.note`). No reselection and no redraw were made.
+  A change of a frozen entry still means `select_set.py draw --supersedes`, then the full QC cases, the camera probe
+  and the noise ladder again. Filling in the real revision of `hidden_gt.url` at publication did not.
+
+## The cell manual's collision model
+
+The cell simulates collision shapes that differ from the part files and the photographs; the manual
+(`setup_payload/given/cell/cell_manual.md`, "Collision model") lists every difference with its size. The chassis is
+its drawn shapes cut into convex pieces (within 0.16 mm of the drawn surface, material only taken away, the cuts
+listed). The loose units, the hubs, the battery bay and its hold-down posts are a few convex pieces built from the
+drawn sizes; the manual states per unit how far they stand beyond the drawn outline and where they are solid in
+hollows of the drawn part, with the side it concerns: a wheel within 0.22 mm of its outline; the antenna mount a box up
+to 9.1 mm beyond the drawn mount; the LiDAR's cap a box whose corners stand 6.7 mm beyond the round cap; the compute
+module's boxes up to 9.7 mm from the drawn material in its recesses and 5.0 mm beyond its outline at some corners;
+the stick pack's prisms 0.23 mm beyond the sleeve along its sides and up to 2.5 mm at its ends; the battery bay's
+faces that the stick pack meets within 1.8 mm of the drawn bay (its larger differences, up to 10.1 mm, face away from
+the pack). An earlier text called the shapes "the drawn shapes with material taken away and none added", true for the
+chassis only; it was corrected (the kit unchanged). Every number of the manual comes from a named source and has an
+independent reading in the dev workspace (`evidence/givens/manual_audit.json`: 497 numbers, 0 mismatches; the built
+pieces measured face by face in `evidence/kit/collision_sides.json`).
+
+## Integration gates (finalization, 2026-11-15; rerun after the phase 2 review's text fixes)
+
+From the dev workspace's `tools/gate_all.sh all --runs 2` on the shared development clone, plus the checks below.
+The two `ale validate` runs of this tree, their comparison (rewards, every episode's grader line, the reference
+program's per-mate lines, every metric but wall-clock values and three counters of the verifier sandbox's own desktop
+session), the gate log and the full leak scan are filed in the dev workspace (`PHASE2_REPORT.md` section 2,
+`evidence/validate/`).
+
+| check | result |
+|---|---|
+| hidden set's frozen table (amendment A1) | unchanged; `episodes.json` is the selection's set |
+| `review/select_set.py selftest` | 10 / 10 (among them: the publication metadata and the documents may change, a grader value or a kit member may not, a table written by the rule as drawn is checked by that rule) |
+| givens rebuilt by their generator (`regen_givens.py check`) | 127 files and 3 evidence files, 0 differences; manual audit 497 numbers, all with an independent reading, 0 mismatches; generator selftest 32 / 32 |
+| texts' own checks (`docs_src/tools/docs_tools.py check`, 38 tests) | ok |
+| the five drawings rebuilt by their generator (`drawings/make_drawings.py --check`, 26 tests) | identical; audit: 87 printed dimensions, 0 failures (`assembly_layout.png` gained note 5, its values unchanged) |
+| leak list and hidden values over the agent-visible files of the task folder | 251 files, 0 unwaived hits (the waived ones: the word "anchor" in the reused, hash-pinned gripper model and hall bundle) |
+| `review/observability.md` against the hidden values | 0 hits |
+
+## Quality control (DESIGN section 8, the rows marked "full run", work package P2-17)
+
+Every case runs the grader's own `verify.main()` on the four hidden episodes; expectations are the design's formula
+values, never edited. 27 rows and one diagnostic, 0 mismatches:
+
+| case | what | expected | measured per episode |
+|---|---|---|---|
+| oracle | the token submission | 1.0 each, twice the same | 1.0 x 4 in each validate run |
+| M1 = C4 | the nominal layout's joint trajectory replayed open loop | <= 0.02 | 0 / 0 / 0 / 0 |
+| M4 | deck first (the stick pack cannot go in) | 0.913 | 0.913 x 4 |
+| M5 | deck thrown off the bench after the compute module and LiDAR are fastened on it | 0.609, episode not zeroed | 0.609 x 4 |
+| M6 | the tray's storage turns copied, the lead end ignored | 0.783 / 0.696 by stratum, mean 0.739 | 0.783 / 0.696 / 0.783 / 0.696 |
+| M7 + M13 | wheels pushed to their stops without handling the hub turn; held at 20 N | per wheel: locked iff the hub is within 6 deg | 16 / 16 wheels as predicted (3 locked), mean 0.576; M13 10 / 10 not fastened |
+| M9, M10 | forearm on the car above 30 N; a unit pressed into the bench above 150 N | 0 each | 0 x 4 each (robot_contact; part_force) |
+| M12 = C8 | compute module and LiDAR onto the deck on its shelf only | 0.217 | 0.217 x 4 (also in the task image) |
+| B1-B5 | wheels first; LiDAR before compute; wheels swapped; the sub-assembly route; the stick pack held level, let go at 30 mm | 1.0 | 1.0 x 4 each |
+| C1, C2, C3 | no `assemble.py`; empty `solve`; steps only | 0 | contract_ok 0 / contract_ok 0 / 0.0 with contract_ok 1 |
+| C5, C6, C7 | the reference on the nominal layout (no cameras); with the nominal intrinsics; every unit dropped 30 mm above its nominal home | <= 0.02 | 0 x 4 each |
+| C9a-f | undocumented RPCs; reading `/opt`; a weight file; a subprocess; a socket from a `.py`; sockets from a `run.sh` program | forbidden / contract_ok 0 | 48 / 48 calls forbidden; every read refused; contract_ok 0 x 3; EACCES on every IP socket |
+
+A scrapped unit never zeroed an episode (8 episodes with scrapped units). The physics cases ran in-process with two
+documented harness patches (the runner's account, the shared machine's network counters); the contract cases and an
+M12 cross-check ran in the task image exactly as the verifier does (root, `nobody`, netguard, Filament). None of the
+physics cases depends on the texts. The image cases depend on the givens (the grader checks `/opt/arb` against
+`given_hashes.json`): after every change of the givens (the corrected manual; the review's text fixes) they run again
+in the task image that the validate of that tree built (the dev workspace's `evidence/validate/qc_image_final/`).
+
+## Zero-cost difficulty evidence
+
+- **I0 clearance audit.** On the raw meshes 78 / 78 insertion orders pass (clearance including the capture window's
+  rotation envelope >= window + 0.5 mm). On the simulated kit 76 / 78: the stick pack's two orders are 1.40 mm short
+  at the rear end of the chassis brace. The design's pre-written fallback applies (that direction uses the measured
+  entry window, printed in the cell manual, which also says where the brace's cut ends); the lead designer accepted
+  it, the dynamic gates and the 100-layout campaign of the reference program having passed. The brace was not
+  re-sized.
+- **I1 entry windows** (1731 trials in the real cell, nominal layout): deck, compute module and LiDAR lock 71 / 71
+  inside 80 % of their windows and 32 / 32 at the window corners; wheels 244 / 244 and 118 / 120; stick pack 62 / 66
+  and 10 / 19. Wheel stop 2.44 mm short of home; the hub turns with the wheel from 6 N of push; the documented search
+  (<= 5 N, 10 deg/s) 24 / 24; blind insertion 0.25 on uniform hub angles (3 / 16 on this set). No window changed.
+- **I2-lite noise ladder** (180 runs: pose error sigma 0-3 mm x hub angle known / searched / blind x 4 episodes x 3
+  noise seeds): sigma 0 with known angles equals the oracle bit for bit. Lock rates hold to sigma 0.5 mm and fall
+  between 1 and 2 mm (logistic s50: stick pack 1.20, deck 1.29, compute 1.98, LiDAR 1.75, wheels known 1.58 /
+  searched 0.91 mm; blind 0.19). The reference program's hard-violation rate rises 0 / 0.14 / 0.44 / 0.69 / 0.72.
+- **I3 camera-only probe** (`review/observability.md`). What it knows: every per-episode quantity (the two cameras'
+  calibration, the fixtures, the car, every unit's pose, the hub angles) comes from the cameras over the public RPC
+  and the robot's own state, with no privileged call. Its static design data are not the given files but the hidden
+  kit's (the places' design frames, the bodies' design poses, the planner's collision pieces, the grasp table), and
+  its moves are the reference program's motion layer (grasps, inverse kinematics, planner) driven by its estimates.
+  It assumes that an agent derives equivalent static data from the drawings and the part files and does not measure
+  that derivation: of the gate's purpose (doable from public information only) it shows the perception half.
+  Round 1 was developed on hidden episodes 0 and 1, so it is not blind there either. Round 1: 1.000 / 1.000 /
+  0.391 / 0.000, mean 0.598, the design gate (mean >= 0.6 and every mate class fastened at least once) missed by
+  0.002; both losses were defects of its single overhead frame. Round 2 repairs exactly those two (reject a fixture
+  board whose residual stands out or whose place lies outside the documented bounds and look at it with the wrist
+  camera before moving near it; survey the bench with the wrist camera when the overhead height map does not give the
+  bench units), developed on layouts outside the hidden set and frozen before its first hidden episode; it is not a
+  blind run. Round 2: 1.000 / 1.000 / 0.870 / 0.000, mean 0.717, every class fastened, every budget kept, public RPC
+  only: **the gate as registered is passed**, for the perception half as said above. Its two remaining losses are
+  again the probe's: a wheel the survey saw only in part (episode 2), and a wrist calibration that diverged after a
+  board inside its bound was rejected and was accepted unchecked, after which a pick pressed the LiDAR into its nest
+  above 150 N (episode 3). No document gap and no binding window in either round.
+- **Independent partial evidence for the step from the documents to a home** (the phase 2 review, 2026-11-15). A
+  camera-only program written by the reviewer with the public API and the given files only (the LiDAR's home and
+  its scored orientation from the drawings, the part files and the photographs; its own calibration, fixture and
+  unit poses and moves; nothing of the kit, the reference program or the grader) built the LiDAR onto the deck on
+  its shelf (the sub-assembly route, at most 1.5 / 11.5 = 0.130). On the four hidden episodes in the task image
+  through `test.sh`: v1, frozen before its first hidden episode, 0.000 / 0.130 / 0.130 / 0.130, mean 0.098; v2,
+  only its calibration changed after v1's failure (not blind), the same. Together 7 placements and 6 fastened, every
+  one in the scored orientation; no safety event, no illegal call. Its two losses were its own: a diverged wrist
+  calibration (v1, episode 0), and the two documented +-1.5 mm plays (the LiDAR in its nest, the deck on its shelf)
+  adding up to about the 2.5 mm window when neither is measured (v2, episode 0). Measured by no program so far: the
+  homes of the stick pack, the deck and the wheels found from `roller.stl`'s datums, a collision model built from the
+  part files and the manual, and moves planned on it.
+- **Prior for a frontier model** (score model with the measured lock curves): centre about 0.15 (0.13-0.18), range
+  0.04-0.40; the width comes from attempt rates counted on other tasks, so it is an order of magnitude. Levers frozen
+  as they were; no configuration edit followed. The phase 2 review reads the centre as more likely high than low:
+  the probe behind the measured error levels had the kit's static data, and the steps no program has measured (above)
+  are where an honest program loses most.
+
+## Budgets and timing
+
+Per episode sim 650 s, wall 3100 s, 450 camera frames, `step(n <= 500)`, 120 s of silence; 4 episodes. Measured in
+the task image's 8-CPU quota: control tick 20-23 ms at the start and about 8 ms once everything is locked, top frame
+1.04-1.17 s (the first one 14-15 s more), cell build 4.3 s. Worst case for an agent's program: 4 x (build + wall cap)
+plus the kit's unpacking = 12 459 s, plus at most 120 s for the import check, about 12 600 s of the verifier's
+14 400 s. The wall cap is a fixed clock: on a slower grading machine only the few hundred seconds of build, unpacking
+and finalizing grow, so the margin of about 1 800 s holds for them. The reference program uses 170-177 s of sim per
+episode; the oracle's verify takes about 1 250 s. The camera-only probe used 26-55 frames, 188-426 s of sim and
+486-1119 s of wall per episode over both rounds.
+
+## Where the files are (published 2026-11-15)
+
+- The task's large givens (`environment/assets/payload/`: 195 files, 102 319 431 bytes: the six part files, five
+  drawings, the picture manual, the arm and gripper models, the cameras' scenery) are on the benchmark's asset dataset
+  `grounded-intelligence-initiative/ale-robotics-assets` under `tasks/driving/racecar_full_assembly_tenth_scale_ur10e/payload/`,
+  and the hidden kit (`gt.tar.xz`, 36 816 332 bytes, sha256 `328939c3…`, 14 620 files) under
+  `…/verifier/gt.tar.xz`, both in one dataset commit, `a6bfe73e80bc6ea336b91140f229ececc08fba6e` (with the owner's
+  approval; the dataset card's row followed in `fd06624f7814c36c4b79688e63d693be83d5cde5`). The bytes downloaded at
+  that commit equal the uploaded ones. 169 of the 195 payload files (`given/robot/`, `render/`) are byte copies of
+  `quadruped_full_assembly_12dof_ur10e`'s, uploaded again under this task's prefix, because each task's asset list
+  names one prefix.
+- `environment/assets.sha256` pins that commit and every file (the image build downloads and checks them with
+  `fetch_assets.py`); `grader_config.json → hidden_gt.url` pins the kit at the same commit (`verify.py` downloads it at
+  verify start and checks its sha256 and file count). Both downloads were run against the dataset after the upload,
+  anonymously, as the image build and the grader do (`-dev/tools/publish_check.py live`): 195 / 195 files and
+  14 620 / 14 620.
+- Filling in the commit changed publication metadata and a document only, recorded under amendment A1
+  (`recorded_changes`, 2026-11-15T22:33:35Z); the frozen table is unchanged.
+
+## Open points (as of 2026-11-15; each needs the owner)
+
+1. **The paid calibration episode** of a frontier model (DESIGN section 9.3, item 2): the I3 gate that blocked it is
+   passed (for the perception half: see I3 above); it still needs the owner's approval.
+2. **The order statement** (the phase 2 review, m1; settled by the lead designer's ruling of 2026-11-15): with the
+   deck still on its shelf, the front-left wheel cannot be fitted with the reference program's grasps (every arm
+   solution collides with the deck). The instruction and the cell manual now say the order is the agent's within what
+   the car physically allows and what the fixtures beside the car leave room for; they name no fixture and no unit
+   and give no plan (the given models and drawings show the geometry). Whether the calibration run trips on it is
+   read after that run.
+
+## How to redo
+
+From the dev workspace (`-dev/` = `docs/plan/driving/tasks/racecar_full_assembly_tenth_scale_ur10e-dev`):
+
+```bash
+-dev/tools/gate_all.sh all --runs 2      # preflight (the freeze check, vendor and asset checks, givens rebuilt byte for
+                                         # byte, the published pins), sync to the shared clone in the published form (the
+                                         # copy without its two asset roots: the image fetches the givens, verify downloads
+                                         # the kit), lint / domain lint / task assets / byte identity / pytest, ale validate
+                                         # twice + comparison, the kit's source, full leak scan, archive to -dev/evidence/validate/
+-dev/tools/gate_all.sh compare <validate-A> <validate-B>
+-dev/tools/publish_check.py live          # both download paths against the dataset, read-only
+-dev/qc/run_qc.py image-case --case C3 --runs <dir> --image <task image>      # one QC case in the task image
+python3 -I -B review/select_set.py check --selection hidden/selection.json     # the freeze in force (amendment A1)
+python3 -I -B review/select_set.py accept --selection <copy of hidden/selection.json> --episodes hidden/episodes.json --out <dir>
+```

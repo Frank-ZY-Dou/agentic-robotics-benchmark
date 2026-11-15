@@ -1,0 +1,8 @@
+{
+ "direction": "higher",
+ "full_at": 1.0,
+ "metric": "assembly_score",
+ "note": "assembly_score is contract_ok x the episode mean of (the counted mates' weight / 11.5 x hard_ok) over the four fixed hidden episodes, already on [0, 1]; ratio = score / 1.0, reward = ratio",
+ "source": "the oracle's own assembly_score by construction: the privileged reference program inside the cell fastens all 8 slots on each of the four fixed hidden episodes, which the hidden-set selection requires of every kept episode (DESIGN section 7); the ale validate runs that record it are filed by the hidden-set and integration packages",
+ "value": 1.0
+}
