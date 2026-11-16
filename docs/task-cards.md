@@ -42,12 +42,21 @@ stages = ["hardware-design", "environment", "behavior"]
   wheeled mobile manipulator) is `ground`. A task that also uses another kind of robot lists it
   after the folder's platform.
 
+## Before a merge
+
+A task merges with its card. The maintainer who finishes a task's pull request adds the card
+(and, for a GPU task, the `gpu_types` it was tested on: [`templates/README.md`](../templates/README.md))
+in a commit on the pull request's branch, then sets the label `ready-to-merge`. With the label,
+CI runs the card check with `--strict`, so a task without a card fails; the same holds on
+`main`. Until then a missing card is only a warning, and a contributor's checks stay green.
+Nothing asks the contributor for a card.
+
 ## Checks
 
 `uv run python scripts/task_cards.py check` runs in CI (`pr-checks`, static-checks): every card
 is well formed, names a task on the tree, starts with its folder's platform and lists its
 stages in order, and no two cards share a title. A task without a card is a warning there;
-`check --strict` makes it an error, the gate before a merge. `task_cards.py todo` lists the
+`check --strict` (on `main`, and on a pull request labelled `ready-to-merge`) makes it an error. `task_cards.py todo` lists the
 tasks without a card and the cards without a task; `task_cards.py context <task>` prints what
 naming a task needs (its `task.toml` facts, its brief's title, headings, first paragraph and
 deliverables, and the cards of its family). [`schemas/task-cards.schema.json`](../schemas/task-cards.schema.json)

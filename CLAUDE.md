@@ -79,8 +79,10 @@ tasks/<platform>/<slug>/
   displays it). Older tasks may still carry retired keys there, which nothing reads. How a
   task is named and filed for display (title, summary, the platforms it involves, the stages
   it covers) is its card in `tasks/cards.toml`, outside every task folder and so no part of
-  its identity; maintainers add it before the merge (`docs/task-cards.md`,
-  `scripts/task_cards.py`). A landed
+  its identity; maintainers add it before the merge and label the pull request
+  `ready-to-merge`, which makes CI's card check strict (`docs/task-cards.md`,
+  `scripts/task_cards.py`). `scripts/gpu_types.py check` (CI, in the engine's environment)
+  checks every `gpu_types` name against known GPU models with the engine's own rule. A landed
   task sits at exactly `tasks/<platform>/<slug>/` (`scripts/lint_domain.py` battery 7 checks
   the key and the placement; a contribution's pull request puts the folder there directly).
   The metric and its direction live only in `tests/anchor.json` (`metric`, `direction`).

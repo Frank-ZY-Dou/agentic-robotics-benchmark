@@ -41,6 +41,12 @@ summary = "Keep a desk sorted with a Franka Panda in Isaac Sim, putting each new
 platforms = ["arm"]
 stages = ["behavior"]
 
+[pump_skid_startup_and_operation]
+title = "Run a pump skid with a rail-mounted arm"
+summary = "Start up, operate and shut down a water plant's pump skid with a Franka Panda on a rail, reading gauges and turning valves through its cameras."
+platforms = ["arm"]
+stages = ["behavior"]
+
 [robocasa_object_dynamics_from_video]
 title = "Infer object mass and friction from video"
 summary = "Estimate the centre of mass, inertia and friction of three household objects from RGB video of a robot poking them; a planner then uses the estimates."
@@ -77,6 +83,12 @@ summary = "Specify ten upgraded replicas of a six-servo desktop arm that is no l
 platforms = ["arm"]
 stages = ["requirements"]
 
+[robotic_arm_robot_description_from_photos]
+title = "Write the MuJoCo model of a desktop arm"
+summary = "Write the MJCF of a customised six-servo desktop arm from one photo session and its servo log, so that its kinematics match the real arm."
+platforms = ["arm"]
+stages = ["robot-description"]
+
 [shoe_lacing_and_boxing]
 title = "Lace and box sneakers with two arms"
 summary = "Lace pairs of children's sneakers criss-cross, box them and send them on with a two-arm cell that is seen only through its cameras."
@@ -104,6 +116,12 @@ stages = ["behavior"]
 [furniture_assembly_from_drawings]
 title = "Assemble a bookcase with two humanoids"
 summary = "Program two Unitree G1 humanoids to build a flat-pack bookcase exactly as its drawings show and stand it where the floor plan says."
+platforms = ["humanoid"]
+stages = ["behavior"]
+
+[house_cleaning_with_tools]
+title = "Clean a studio apartment with a humanoid"
+summary = "Program a Unitree G1 humanoid to clean a studio apartment after a dinner: sort the trash, wash up, wipe a spill and sweep, from its cameras alone."
 platforms = ["humanoid"]
 stages = ["behavior"]
 
