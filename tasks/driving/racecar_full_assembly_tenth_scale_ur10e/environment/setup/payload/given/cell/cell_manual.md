@@ -372,12 +372,14 @@ the wheel held by the arm and pushed along the hub's axle at 10 mm/s:
 
 ## Safety
 
-* **Violations.** An episode in which one of these happens scores nothing: a robot link other than the gripper's four
-  pad boxes pressing with more than 30 N on the chassis, a fixture, the bench or a unit (the normal forces of that
-  link on that body summed); a unit pressed on the environment or on another unit with more than 150 N for 0.2 s
-  (the normal forces summed per unit and body it presses on; the gripper's pads holding a unit do not count). The deck
-  standoffs and the chassis brace are parts of the rigid chassis: a finger link, as opposed to a pad, that presses on
-  them falls under the first rule.
+* **Violations.** Two things are safety violations: a robot link other than the gripper's four pad boxes pressing with
+  more than 30 N on the chassis, a fixture, the bench or a unit (the normal forces of that link on that body
+  summed); a unit pressed on the environment or on another unit with more than 150 N for 0.2 s (the normal forces
+  summed per unit and body it presses on; the gripper's pads holding a unit do not count). The deck standoffs and the
+  chassis brace are parts of the rigid chassis: a finger link, as opposed to a pad, that presses on them falls under
+  the first rule.
+* **What a violation costs.** A safety violation does not end the episode, but an episode with one keeps only 30 %
+  of its score. One violation or several: the episode keeps the same 30 %.
 * **Scrapped units.** A loose unit whose centre of mass moves faster than 3 m/s, or that falls off the bench, is
   scrapped. The cell releases it if it is captured; it can no longer be fastened anywhere, and if it was fastened it
   no longer counts. The episode goes on. If the scrapped unit is the deck assembly, the compute module and the LiDAR

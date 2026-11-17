@@ -74,20 +74,21 @@ written after your session ended. The code check is static: it parses your `.py`
 `eval(...)` and `compile(...)` it counts only the built-ins called by their bare names with a non-literal argument, so
 a method of the same name, such as MuJoCo's `spec.compile()`, is fine.
 
-Per episode, two things zero that episode: a robot link other than the gripper's four pad boxes pressing with more
+Per episode, two things are safety violations: a robot link other than the gripper's four pad boxes pressing with more
 than 30 N on the chassis, a fixture, the bench or a unit; and a unit pressed on the environment or on another unit
-with more than 150 N for 0.2 s. A dropped unit does not zero the episode: a loose unit whose centre of mass moves
-faster than 3 m/s, or that falls off the bench, is scrapped. It can no longer be fastened and no longer counts; the
-episode goes on with the other units. If the scrapped unit is the deck assembly, the compute module and the LiDAR
-fastened on it stop counting with it.
+with more than 150 N for 0.2 s. A safety violation does not end the episode, but an episode with one keeps only
+30 % of its score. One violation or several: the episode keeps the same 30 %. A dropped unit is not a safety
+violation: a loose unit whose centre of mass moves faster than 3 m/s, or that falls off the bench, is scrapped. It
+can no longer be fastened and no longer counts; the episode goes on with the other units. If the scrapped unit is the
+deck assembly, the compute module and the LiDAR fastened on it stop counting with it.
 
 `assembly_score` = the mean over the episodes of the car's completed fraction: the weight of what the cell has
-fastened at the end of the episode over the car's total weight 11.5. The weights: the stick pack in its bay 1.0;
-the deck assembly on its standoffs 2.0; the compute module on the deck 1.0; the LiDAR on the deck 1.5, counted
-only in the orientation the manual shows; each wheel on a hub 1.5. The reward is `assembly_score` x the gate. Stats
-(not scored): per-place rates, a LiDAR fastened in another orientation, scrapped units, what stopped counting with a
-scrapped deck, frames used per camera, sim / wall time, illegal calls, safety events, the largest sustained force,
-network counters.
+fastened at the end of the episode over the car's total weight 11.5, kept at 30 % in an episode with a safety
+violation. The weights: the stick pack in its bay 1.0; the deck assembly on its standoffs 2.0; the compute module
+on the deck 1.0; the LiDAR on the deck 1.5, counted only in the orientation the manual shows; each wheel on a hub
+1.5. The reward is `assembly_score` x the gate. Stats (not scored): per-place rates, a LiDAR fastened in another
+orientation, scrapped units, what stopped counting with a scrapped deck, frames used per camera, sim / wall time,
+illegal calls, safety events, the largest sustained force, network counters.
 
 ## Rules of the cell (details in `cell_manual.md` / `cell_api.md`)
 

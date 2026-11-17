@@ -6634,6 +6634,99 @@
     "tests/review/select_set.py": "864e3b4826bf71f0d2237144d4d479a8cbe68020ba1b8b81f7ab6e0ce53f1e64"
    },
    "reselection": "none: no redraw, no new candidate, the kept episodes and episodes.json unchanged"
+  },
+  {
+   "id": "A2",
+   "date": "2026-11-16",
+   "written_utc": "2026-11-17T00:32:59Z",
+   "authority": "the owner's decision of 2026-11-16, relayed by the task's lead (the main session): an assembly task should not read a flat zero for a program that assembles a good part of the car; an episode with a safety violation keeps 30 % of its stage score instead of 0 (task version v1.7, DESIGN section 19.0c); the hidden episodes, the kit, the cell physics, the windows, the documents' facts and the reference program unchanged; no reselection",
+   "amends": "rule 1 (Freeze) of rule_text as amended by A1 (2026-11-15)",
+   "rule": "Rule 1 as amended by A1 stays in force. In addition: a dated decision of the owner that changes only how an episode's outcome is scored (verify.py's score arithmetic and its words, grader_config.json's scoring values and the grader's notes, the agent-visible strings that state the rule) re-enters the frozen table under a new amendment instead of a redraw, when (a) every other entry of the table in force is unchanged; (b) inside the frozen trees only the strings and docstrings that state the rule change (here arm/assembly_car/server.py: the safety strings of describe()), no file of the cell's physics, layout, kit loading or reference program; (c) every episode's layout digest is still recomputed at every reset and equals episodes.json in the validates that follow; (d) the reference program's per-episode outcome on the four episodes is reproduced (validate comparison: the same grader lines and per-mate lines). The table in force is this amendment's from its writing. A change of anything else in the table still means a new draw (select_set.py draw --supersedes).",
+   "why": "the files that carry the rule are frozen as wholes: verify.py by its bytes, grader_config.json by its values, tests/arm as a tree; the new rule changes bytes in all three though none of them enters an episode's physics or layout, so the set that the four episodes are, and every outcome the reference program reaches on them, stay valid. The factor is 0.3 (grader_config.json scoring.safety_violation_factor), one number from which verify.py and every agent-visible text take it",
+   "checked_at_writing": {
+    "before_change": {
+     "tool_check_json": "/data/xiatao/tmp/driving_roboracer_20261113/asm/V17/pre/freeze_status_pre.json",
+     "table": "amendment A1 (2026-11-15)",
+     "frozen_ok": true,
+     "episodes_is_the_set": true,
+     "recorded_changed": [],
+     "snapshot": "/data/xiatao/tmp/driving_roboracer_20261113/asm/V17/pre/task_body_v16",
+     "snapshot_entries_as_A1": true
+    },
+    "after_change": {
+     "files_unchanged": 9,
+     "trees_unchanged": 5,
+     "changed": {
+      "tests/grader_config.json#values": [
+       "5f4c71ecfdde7abc39b1d985215b67867d9e5ae7f358b681149402cdef708e97",
+       "babe05cd691e8d9f467c5d49be5d9374d833f482827519be8db042f4100b4ea1"
+      ],
+      "tests/verify.py": [
+       "b8dc39d68ef62fd8dab3fac935522e26b1023d931194536dd0dc4ecc3d82ac52",
+       "af0e162d8f920a44098b7021c252ab2768544b9e566ee37b75492d3204e026a1"
+      ]
+     },
+     "changed_trees": {
+      "tests/arm": [
+       "f4c8d2733ff20adef1ef6fb6dbc59c19fadbdd58d71038109e55581420381397",
+       "18a3e39928b59d64199926f60eb4971ae395dab2bd30c61a09e56e9ce988bfb9"
+      ]
+     },
+     "tests_arm_files_changed": [
+      "assembly_car/server.py"
+     ],
+     "kit_members_as_A1": true
+    },
+    "episodes_sha256_is_the_set": true,
+    "selection_json_sha256_before": "699fad9ee356448ac94cfec083e25074f0bfa039a5d1c35284e54cdcb8c0c44c"
+   },
+   "frozen": {
+    "tests/verify.py": "af0e162d8f920a44098b7021c252ab2768544b9e566ee37b75492d3204e026a1",
+    "tests/test.sh": "a3ae37dc3edaebb7da88837f221c31ac9878f7a7523ec395d7c074781aec851e",
+    "tests/netguard.py": "80747b83b161c1495a4d0ccfae439188e3c42c94c0e41bc518f2d530170a64d7",
+    "tests/episode_trace.py": "e55c7b8004c9d7819fb3f8e9daf1204338a689e027503943d00055d9a2554632",
+    "tests/hidden/bench_plan.json": "c9cbb3416fee393341baa33ecdf65b5ac53fc9f1b23cb55fd6cb973e989563d1",
+    "tests/hidden/oracle_token.sha256": "c815e5d3326fa8b94f4f004247d919d490ac7abdd0ad9ab830d5822597d76d74",
+    "solution/solve.sh": "c7a4ab9ce55396ecd0180fb72d027a2500a17a4005f7fd12cdceb09005a46681",
+    "solution/reference/assemble.py": "84c9cda5733fdc6100afe18c6ec334d1c0569461206fc7c929cbb6d21f8d2cf2",
+    "solution/reference/oracle_token": "c7c89fd14f9af6e7aa65136e212391e93c4eb3785bc99f390b303094f549dcdf",
+    "tests/grader_config.json#values": "babe05cd691e8d9f467c5d49be5d9374d833f482827519be8db042f4100b4ea1",
+    "tests/assets/gt.tar.xz#members": "bbc2b4b934b229e219bd83c5c696e16698fe576f22cc63f9df875d938437bbf4"
+   },
+   "frozen_counts": {
+    "tests/assets/gt.tar.xz#members": 14620
+   },
+   "frozen_trees": {
+    "tests/arm": "18a3e39928b59d64199926f60eb4971ae395dab2bd30c61a09e56e9ce988bfb9",
+    "tests/common": "c72b609d5891112e376876f1881a64e8323bb680a8c492ce145663537b94b8ed",
+    "tests/render": "08473c0de3ee3a06a8788493c3b9eff78c25e4151a635cc20f77208031bc7161",
+    "tests/render_filament": "09c41d7777d46d87e462291f48186c6cde3eef26976242c128ec41c95c66a5da",
+    "tests/room": "026fbf2d79c4b5865684642e5da1ccbd3b7af962e59bb6e68f8ee5bb2b53605f",
+    "environment/assets/payload/given/robot": "7229d7c5317852782159032ffd373a7b266749bc106c35ae0cc6c0697f55fde4"
+   },
+   "recorded": {
+    "publication": {
+     "tests/assets/gt.tar.xz": "328939c34609e9f9b9108da78f3e37249c1d311de60f0361ca11f2f8c5fff4f4",
+     "tests/grader_config.json#hidden_gt.url": "e3f2aabd1f46240118f8564537e5e830bbc4bff9229b74550d88a0c3d2af0385",
+     "tests/grader_config.json#hidden_gt.sha256": "7826a7d574e3595e764899fd24e63e67e256e0adc4bf71ce5801173853d2cd64",
+     "tests/grader_config.json#hidden_gt.note": "c7af77de6e4efde92e9326e3133c3c7e6379a0b6b3271599335d20d8809790eb"
+    },
+    "documents": {
+     "instruction.md": "fcf25633704e252590e471aa2852a16eeec61793b85540d5dad6dac9efb691d6",
+     "environment/assets.sha256": "5732815792d60faf14335988184a331efddf29292a0c34a42eda59af1463aa81",
+     "tests/given_hashes.json": "01311343644d2bae7cc849d194bc272b43ce0ca0a4e2ee63c37c9c45e74913d0",
+     "environment/setup/payload/": "0afec855edea981fa6d0ffb4c763c26656d81fc35f09d3489e16164ee846502a",
+     "environment/assets/payload/given/parts/": "cf7474fad80c23f25539d3a1f78b26e915466a88588ba8ef8263c4ad6dbff8e5",
+     "environment/assets/payload/given/drawings/": "dfece19a682cef21b9613a86c6cde01031573fe117cc4e13a087278a787d193c",
+     "environment/assets/payload/given/manual/": "963d5f2b2af8e26d01d9c1840adfaba50003b26cf83b90ac9212d659a113003e",
+     "environment/assets/payload/render/": "d25e9c225c66d9244a8b7a98bbb5056216e32bf16898b9f110fc8a9a3d6972ff",
+     "tests/setup_payload/": "0afec855edea981fa6d0ffb4c763c26656d81fc35f09d3489e16164ee846502a"
+    }
+   },
+   "tool_at_writing": {
+    "tests/review/select_set.py": "6b6848f08145e40b4f47e4c045e0d3bc5e13594bdd6805728ebdf5bc72a651da"
+   },
+   "reselection": "none: no redraw, no new candidate, the kept episodes and episodes.json unchanged"
   }
  ],
  "recorded_changes": [
@@ -6856,6 +6949,51 @@
     "tests/review/select_set.py": "6b6848f08145e40b4f47e4c045e0d3bc5e13594bdd6805728ebdf5bc72a651da"
    },
    "frozen_checked": "amendment A1 (2026-11-15): unchanged"
+  },
+  {
+   "utc": "2026-11-17T00:33:14Z",
+   "why": "task version v1.7 (2026-11-16, the owner's decision on the per-episode safety rule, amendment A2 written at 2026-11-17T00:32:59Z): an episode with a safety violation keeps 30 % of its stage score (grader_config.json scoring.safety_violation_factor 0.3); the agent's texts generated from DEV/docs_src (regen_givens.py build): instruction.md (the grading paragraph and the assembly_score sentence), the cell manual's Safety section, the cell API's step events, cell_config.json (scoring.safety_violation_factor and two public notes), their copies in tests/setup_payload/ and tests/given_hashes.json; no fact of the documents changed, no asset of the dataset changed (environment/assets.sha256 and the given parts, drawings, manual and render assets byte-identical)",
+   "changed": {
+    "documents/environment/setup/payload/": [
+     "84b2ce987f737463796fbe3bc4c6a615def52b7382898e2e8766643b16a5b47d",
+     "0afec855edea981fa6d0ffb4c763c26656d81fc35f09d3489e16164ee846502a"
+    ],
+    "documents/instruction.md": [
+     "39b6cde79793e7894f646b48f0573f975df17db1d55bb34168c396b22db13677",
+     "fcf25633704e252590e471aa2852a16eeec61793b85540d5dad6dac9efb691d6"
+    ],
+    "documents/tests/given_hashes.json": [
+     "85a55ff4430690260ed3fae89492141dcc8dad1cf3de11644cc6674c6adb3838",
+     "01311343644d2bae7cc849d194bc272b43ce0ca0a4e2ee63c37c9c45e74913d0"
+    ],
+    "documents/tests/setup_payload/": [
+     "84b2ce987f737463796fbe3bc4c6a615def52b7382898e2e8766643b16a5b47d",
+     "0afec855edea981fa6d0ffb4c763c26656d81fc35f09d3489e16164ee846502a"
+    ]
+   },
+   "recorded": {
+    "publication": {
+     "tests/assets/gt.tar.xz": "328939c34609e9f9b9108da78f3e37249c1d311de60f0361ca11f2f8c5fff4f4",
+     "tests/grader_config.json#hidden_gt.url": "e3f2aabd1f46240118f8564537e5e830bbc4bff9229b74550d88a0c3d2af0385",
+     "tests/grader_config.json#hidden_gt.sha256": "7826a7d574e3595e764899fd24e63e67e256e0adc4bf71ce5801173853d2cd64",
+     "tests/grader_config.json#hidden_gt.note": "c7af77de6e4efde92e9326e3133c3c7e6379a0b6b3271599335d20d8809790eb"
+    },
+    "documents": {
+     "instruction.md": "fcf25633704e252590e471aa2852a16eeec61793b85540d5dad6dac9efb691d6",
+     "environment/assets.sha256": "5732815792d60faf14335988184a331efddf29292a0c34a42eda59af1463aa81",
+     "tests/given_hashes.json": "01311343644d2bae7cc849d194bc272b43ce0ca0a4e2ee63c37c9c45e74913d0",
+     "environment/setup/payload/": "0afec855edea981fa6d0ffb4c763c26656d81fc35f09d3489e16164ee846502a",
+     "environment/assets/payload/given/parts/": "cf7474fad80c23f25539d3a1f78b26e915466a88588ba8ef8263c4ad6dbff8e5",
+     "environment/assets/payload/given/drawings/": "dfece19a682cef21b9613a86c6cde01031573fe117cc4e13a087278a787d193c",
+     "environment/assets/payload/given/manual/": "963d5f2b2af8e26d01d9c1840adfaba50003b26cf83b90ac9212d659a113003e",
+     "environment/assets/payload/render/": "d25e9c225c66d9244a8b7a98bbb5056216e32bf16898b9f110fc8a9a3d6972ff",
+     "tests/setup_payload/": "0afec855edea981fa6d0ffb4c763c26656d81fc35f09d3489e16164ee846502a"
+    }
+   },
+   "tools": {
+    "tests/review/select_set.py": "6b6848f08145e40b4f47e4c045e0d3bc5e13594bdd6805728ebdf5bc72a651da"
+   },
+   "frozen_checked": "amendment A2 (2026-11-16): unchanged"
   }
  ]
 }

@@ -6,7 +6,10 @@ malformed set, and a layout the cell builds differently, are task errors whose m
 agent process starts through netguard; the hidden kit is pinned by sha256 and file count (the development copy
 tests/assets/gt.tar.xz, when present, has that sha256); the oracle token's sha256 is the one under tests/hidden/; once
 the set is frozen it holds four distinct seeds in [0, 2**63), one per stratum, the selection record keeps each of them,
-and nothing agent-visible (instruction.md, environment/) holds a value of the set or the token.
+and nothing agent-visible (instruction.md, environment/) holds a value of the set or the token. The safety rule (v1.7,
+the owner's decision of 2026-11-16): an episode with a safety violation keeps grader_config.json
+scoring.safety_violation_factor of its stage score (one factor per episode), factor 0 is the earlier rule, and every
+agent-visible text that states the rule prints that factor and none says the episode is zeroed.
 
 Stdlib only: the grader's set functions are taken from tests/verify.py by name (it imports numpy and MuJoCo at module
 level, which the host venv does not have). Tests that need the frozen set skip until it exists (the hidden-set package
@@ -15,6 +18,7 @@ writes tests/hidden/episodes.json and selection.json).
 import ast
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -49,7 +53,7 @@ def _grader(names, consts=("SET_FORMAT", "STRATA", "SEED_LIMIT")):
     body += [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
     have = {n.name for n in body if isinstance(n, ast.FunctionDef)}
     assert have == set(names), "verify.py lacks %s" % (set(names) - have)
-    ns = {"json": json, "os": os, "re": re, "fail": _fail}
+    ns = {"json": json, "math": math, "os": os, "re": re, "fail": _fail}
     exec(compile(ast.Module(body=body, type_ignores=[]), str(VERIFY), "exec"), ns)
     return ns
 
@@ -249,6 +253,77 @@ class ConfigAndToken(unittest.TestCase):
                 self.assertIsNone(_bounded(v).search(text), rel)
             for name in ("oracle_token", "hidden/episodes", "hidden/selection", "hidden/bench_plan"):
                 self.assertNotIn(name, text, rel)
+
+
+class SafetyRule(unittest.TestCase):
+    """v1.7: an episode with a safety violation keeps the configured share of its stage score"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.g = _grader(["safety_factor", "episode_values", "rule_words"], consts=())
+        cls.factor = CONFIG["scoring"]["safety_violation_factor"]
+        cls.fns = {n.name: n for n in ast.parse(VERIFY.read_text()).body if isinstance(n, ast.FunctionDef)}
+
+    @staticmethod
+    def _ep(stage, hard_ok):
+        return {"stage_score": stage, "hard_ok": hard_ok}
+
+    def test_the_factor_is_one_number_of_the_grader_configuration(self):
+        self.assertEqual(self.factor, 0.3)
+        self.assertEqual(self.g["safety_factor"](CONFIG), 0.3)
+
+    def test_a_bad_factor_is_a_task_error(self):
+        for bad in (None, -0.1, 1.5, float("nan"), float("inf"), True, "0.3"):
+            cfg = {"scoring": {"count_subassembly": True}} if bad is None else {"scoring": {"safety_violation_factor": bad}}
+            with self.assertRaises(TaskError, msg=repr(bad)):
+                self.g["safety_factor"](cfg)
+        for good in (0, 0.0, 0.3, 1):
+            self.assertEqual(self.g["safety_factor"]({"scoring": {"safety_violation_factor": good}}), float(good))
+
+    def test_one_factor_per_episode_and_clean_episodes_unchanged(self):
+        ev = self.g["episode_values"]
+        eps = [self._ep(1.0, False), self._ep(1.0, True), self._ep(9.0 / 11.5, False), self._ep(0.0, False)]
+        self.assertEqual(ev(eps, 0.3), [1.0 * 0.3, 1.0, (9.0 / 11.5) * 0.3, 0.0])
+        self.assertEqual(ev([self._ep(0.5, True)], 0.3), [0.5])
+
+    def test_factor_zero_is_the_earlier_rule_bit_for_bit(self):
+        ev = self.g["episode_values"]
+        stages = [0.21739130434782608, 0.5217391304347826, 0.391304347826087, 0.2608695652173913, 1.0, 0.0]
+        for bits in ([False] * 6, [True] * 6, [True, False, True, False, False, True]):
+            eps = [self._ep(s_, b) for s_, b in zip(stages, bits)]
+            old = [float(e["stage_score"]) * (1.0 if e["hard_ok"] else 0.0) for e in eps]
+            self.assertEqual([repr(v) for v in ev(eps, 0.0)], [repr(v) for v in old])
+        self.assertEqual(self.g["rule_words"](0.0), "an episode with a hard safety violation scoring 0")
+        self.assertEqual(self.g["rule_words"](0.3), "an episode with a hard safety violation keeping 30 % of its score")
+
+    def test_four_violating_episodes_keep_the_factor_of_their_mean(self):
+        stages = [2.5 / 11.5, 6.0 / 11.5, 4.5 / 11.5, 3.0 / 11.5]
+        vals = self.g["episode_values"]([self._ep(s_, False) for s_ in stages], self.factor)
+        self.assertAlmostEqual(sum(vals) / 4.0, 0.3 * sum(stages) / 4.0, places=15)
+        self.assertEqual(round(sum(vals) / 4.0, 3), 0.104)
+
+    def test_the_grader_scores_with_the_rule(self):
+        src = ast.unparse(self.fns["_main_locked"])
+        self.assertIn("factor = safety_factor(cfg)", src)
+        self.assertIn("vals = episode_values(agent, factor)", src)
+        self.assertIn("metrics['safety_violation_factor'] = factor", src)
+        self.assertLess(src.index("safety_factor(cfg)"), src.index("contract_check("))
+
+    def test_the_agent_visible_texts_print_the_factor(self):
+        pct = "%.0f %%" % (100.0 * self.factor)
+        given = TASK / "environment" / "setup" / "payload" / "given" / "cell"
+        texts = {"instruction.md": (TASK / "instruction.md").read_text(), "cell_manual.md": (given / "cell_manual.md").read_text(),
+                 "cell_api.md": (given / "cell_api.md").read_text()}
+        flat = {k: " ".join(v.split()) for k, v in texts.items()}
+        sentence = "A safety violation does not end the episode, but an episode with one keeps only %s of its score." % pct
+        self.assertIn(sentence, flat["instruction.md"])
+        self.assertIn(sentence, flat["cell_manual.md"])
+        self.assertIn("keeps only %s of its score" % pct, flat["cell_api.md"])
+        for name, text in flat.items():
+            for old in ("zero that episode", "zeroes the episode", "scores nothing", "does not zero the episode"):
+                self.assertNotIn(old, text, name)
+        public = json.loads((given / "cell_config.json").read_text())
+        self.assertEqual(public["scoring"]["safety_violation_factor"], self.factor)
 
 
 class FrozenSet(unittest.TestCase):

@@ -24,9 +24,12 @@ This grader:
   3. gates: contract_ok = assemble.py is a regular file that parses and defines solve, the route gate (no weight files,
      no training calls, size cap), the network audit (static: no networking import, no computed import, no started
      program; runtime: no outbound network activity while the program runs), the module imports under the run regime,
-     >= 1 step call, no late write, no surviving process; per episode `hard_ok` (a robot link other than the gripper's
-     four pad boxes > 30 N on one body; a unit pressed on the environment or another unit above 150 N for 0.2 s) zeroes
-     that episode; a unit off the bench or faster than 3 m/s is only scrapped (it and what it carries count nothing);
+     >= 1 step call, no late write, no surviving process; per episode the safety rule (`safety_factor`, DESIGN v1.7:
+     an episode with a safety violation, i.e. hard_ok false: a robot link other than the gripper's four pad boxes > 30 N
+     on one body, or a unit pressed on the environment or another unit above 150 N for 0.2 s, keeps
+     grader_config.json scoring.safety_violation_factor of its stage score, one factor per episode however many
+     violations; the episode goes on; 0 = the rule of v1.0-v1.6, the episode zeroed); a unit off the bench or faster
+     than 3 m/s is only scrapped (it and what it carries count nothing);
   4. the oracle token: submission/.oracle_token whose sha256 equals hidden/oracle_token.sha256 switches the cells to the
      privileged mode (the call `reference_assemble`; stat privileged_mode); a wrong token is ignored (stat
      oracle_token_mismatch); the privileged mode plays the same four hidden episodes (oracle_nominal_layout false);
@@ -34,9 +37,10 @@ This grader:
      `nobody` from a read-only copy; at every reset the layout the cell built must have the hidden set's layout digest
      (a mismatch is a task error: the kit, the bench plan, the layout code or the configuration changed after the set
      was selected);
-  6. criterion: assembly_score = contract_ok x (1/4) sum over the episodes of stage_score x hard_ok, stage_score = the
-     counted mates' weight / 11.5 (DESIGN section 7: a mate counts when its slot is fastened in a counting orientation
-     and neither its unit nor a loose unit on its carrier chain is scrapped); every statistic goes to the metrics,
+  6. criterion: assembly_score = contract_ok x (1/4) sum over the episodes of stage_score x (1 if hard_ok else the
+     safety factor) (`episode_values`), stage_score = the counted mates' weight / 11.5 (DESIGN section 7: a mate counts
+     when its slot is fastened in a counting orientation and neither its unit nor a loose unit on its carrier chain is
+     scrapped); every statistic goes to the metrics (the ungated mean, the hard-rule counts and the factor among them),
      finite numbers only;
   7. (a record only) every agent episode's replay trace and summary under /opt/arb-verify/out (root-only).
 Untouched sandbox: no assemble.py -> contract_ok 0 -> 0.
@@ -616,6 +620,31 @@ def run_episode(cfg, k, ep, rn, privileged, plan, kit, uv, guard, trace_tag=None
     return summary
 
 
+# ------------------------------------------------------------------------------------------------ the safety rule
+def safety_factor(cfg):
+    """grader_config.json scoring.safety_violation_factor: the share of its stage score that an episode with a safety
+    violation keeps (DESIGN v1.7 section 7, the owner's decision of 2026-11-16: either hard rule of the cell's watch, one
+    factor per episode however many violations; the episode goes on). A number in [0, 1], else a task error; 0 is the
+    rule of v1.0-v1.6 (the episode zeroed)."""
+    v = (cfg.get("scoring") or {}).get("safety_violation_factor")
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(float(v)) or not 0.0 <= float(v) <= 1.0:
+        fail("grader_config.json scoring.safety_violation_factor must be a number in [0, 1]")
+    return float(v)
+
+
+def episode_values(agent, factor):
+    """the scored value of each episode summary: its stage score, times `factor` when the episode broke a hard rule
+    (hard_ok false; one factor however many violations)"""
+    return [float(s["stage_score"]) * (1.0 if s["hard_ok"] else factor) for s in agent]
+
+
+def rule_words(factor):
+    """the diagnostic's words for the safety rule (factor 0: the words of v1.0-v1.6)"""
+    if factor == 0.0:
+        return "an episode with a hard safety violation scoring 0"
+    return "an episode with a hard safety violation keeping %s %% of its score" % ("%.10g" % (100.0 * factor))
+
+
 # ------------------------------------------------------------------------------------------------ the verdict
 def write_verdict(rewards, metrics):
     """One gated `reward` in the benchmark kit's envelope (robotics_grader.ratio_rewards against anchor.json: value 1.0 =
@@ -640,8 +669,9 @@ def write_verdict(rewards, metrics):
                             metric_name=meta.get("metric", "assembly_score"), extra=extra, full_at=meta.get("full_at", 1.0))
     text = ("contract_ok %.0f (the program imports, exposes solve, passes the route gate and the network audit and steps the "
             "cell; no late write, no surviving process); assembly_score %.4f (episode mean of the fastened mates' weight / 11.5 "
-            "on the %d fixed hidden episodes, an episode with a hard safety violation scoring 0)") % (
-                rewards["contract_ok"], rewards["assembly_score"], int(metrics.get("episodes", 0)))
+            "on the %d fixed hidden episodes, %s)") % (
+                rewards["contract_ok"], rewards["assembly_score"], int(metrics.get("episodes", 0)),
+                rule_words(float(metrics.get("safety_violation_factor", 0.0))))
     recorded = {}
     for k, v in sorted(verdict["metrics"].items()):
         try:
@@ -705,6 +735,8 @@ def _main_locked(cfg, rewards, metrics, guard_dir):
         fail("the root-owned copy of the givens at %s is unusable: %s" % (ROOT_PAYLOAD, "; ".join(problems[:5])))
     episodes = load_hidden_set(cfg, HIDDEN)
     metrics["hidden_set_episodes"] = float(len(episodes))
+    factor = safety_factor(cfg)
+    metrics["safety_violation_factor"] = factor
     gt_files, gt_s, gt_source = fetch_hidden_gt(cfg)
     metrics["hidden_gt_files"] = float(gt_files)
     metrics["hidden_gt_fetch_s"] = float(gt_s)
@@ -754,7 +786,11 @@ def _main_locked(cfg, rewards, metrics, guard_dir):
         metrics["net_outbound_events"] += float(s_a.get("net_outbound", 0))
         for ck, cv in (s_a.get("net_delta") or {}).items():
             metrics["net_" + ck] = metrics.get("net_" + ck, 0.0) + float(max(0, cv))
-    vals = [float(s["stage_score"]) * (1.0 if s["hard_ok"] else 0.0) for s in agent]
+    vals = episode_values(agent, factor)
+    log("[grader] safety rule: factor %s (an episode with a safety violation keeps that share of its stage score); "
+        "scored per episode %s" % ("%.10g" % factor, ["%.4f" % v for v in vals]))
+    for s_a, v in zip(agent, vals):
+        s_a["episode_value"] = v                     # the record (out/episodes.json): the episode's scored value
     steps_gate = 1.0 if step_calls > 0 else 0.0
     clean_gate = 1.0 if rn.unclean_runs == 0 else 0.0
     net_gate = 1.0 if (metrics["remote_sockets_seen"] <= 0 and metrics["net_outbound_events"] <= 0) else 0.0

@@ -93,7 +93,7 @@
   "max_submission_mb": 60
  },
  "safety": {
-  "note": "robot_force_N: a robot link other than the gripper's pads pressing harder than this zeroes the episode; part_speed_m_s: a loose unit faster than this, or off the bench, is scrapped (it no longer counts; the episode goes on)",
+  "note": "robot_force_N: a robot link other than the gripper's pads pressing harder than this is a safety violation (see scoring.safety_violation_factor); part_speed_m_s: a loose unit faster than this, or off the bench, is scrapped (it no longer counts; the episode goes on)",
   "part_speed_m_s": 3.0,
   "robot_force_N": 30.0
  },
@@ -103,7 +103,8 @@
  },
  "scoring": {
   "count_subassembly": true,
-  "note": "count_subassembly true: a compute module or a LiDAR fastened on the deck assembly counts wherever the deck assembly is, unless the deck assembly is scrapped"
+  "note": "count_subassembly true: a compute module or a LiDAR fastened on the deck assembly counts wherever the deck assembly is, unless the deck assembly is scrapped. safety_violation_factor: a safety violation (safety.robot_force_N, or damage.part_force_N for damage.ticks) does not end the episode, but an episode with one keeps only this share of its score, however many violations it has",
+  "safety_violation_factor": 0.3
  },
  "silence_s": 120.0,
  "sim_cap_s": 650.0,

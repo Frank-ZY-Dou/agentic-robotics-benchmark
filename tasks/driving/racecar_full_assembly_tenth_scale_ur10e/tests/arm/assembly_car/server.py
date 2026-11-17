@@ -28,7 +28,8 @@ Score of an episode (`finalize`): stage_score = the counted slots' weight / the 
 fastened in a counting orientation, neither its unit nor a loose unit on its carrier chain scrapped; premounted slots
 leave both sums; 11.5 with none); hard_ok = no robot_contact (a robot link other than the four pads above
 safety.robot_force_N on one body) and no part_force (a unit pressed above damage.part_force_N for damage.ticks
-consecutive ticks) violation. grader_config `scope.premounted` and `scoring.count_subassembly` are the coupling's
+consecutive ticks) violation (verify.py: an episode that is not hard_ok keeps scoring.safety_violation_factor of its
+stage score, which describe() states). grader_config `scope.premounted` and `scoring.count_subassembly` are the coupling's
 `premounted` and `count_subassembly`; `safety` / `damage` / `scrap` are the cell's watch thresholds.
 """
 
@@ -102,9 +103,11 @@ MOUNT_TEXT = {
 }
 SAFETY_RULES = (
     "a robot link other than the gripper's four pad boxes pressing on the chassis, a fixture, the bench or a unit above "
-    "robot_force_N: the episode scores nothing",
+    "robot_force_N: a safety violation",
     "a unit pressed on the environment or on another unit above part_force_N for part_force_window_s (the normal forces summed "
-    "per unit and body it presses on; the gripper's pads on a unit do not count): the episode scores nothing",
+    "per unit and body it presses on; the gripper's pads on a unit do not count): a safety violation",
+    "a safety violation does not end the episode, but an episode with one keeps only {keep_pct} % of its score "
+    "(violation_score_factor), however many violations it has",
     "a loose unit whose centre of mass is faster than part_speed_m_s, or that falls off the bench, is scrapped: it is released, "
     "can no longer be fastened and no longer counts; the episode goes on; a scrapped deck assembly takes the compute module and "
     "the LiDAR fastened on it with it",
@@ -416,6 +419,7 @@ class CarInfoServer(InfoCellServer):
         rb, ct = self.cell.robot, self.ctrl
         from ..assembly_quad.gripper_2f85 import FORCE_MODEL_TEXT
         dmg = self.cfg["damage"]
+        keep = float(self.cfg["scoring"]["safety_violation_factor"])      # the grader's factor (verify.safety_factor)
         return {
             "cell_version": CELL_VERSION, "units": {"length": "m", "angle": "rad", "quaternion": "wxyz"},
             "task": TASK_TEXT,
@@ -455,7 +459,8 @@ class CarInfoServer(InfoCellServer):
                         "camera_frames": int(self.cfg["camera_budget_frames"])},
             "safety": {"robot_force_N": float(self.cfg["safety"]["robot_force_N"]), "part_speed_m_s": float(self.cfg["safety"]["part_speed_m_s"]),
                        "part_force_N": float(dmg["part_force_N"]), "part_force_window_s": _r(self.tick_s * int(dmg["ticks"])),
-                       "off_bench_m": float(self.cfg["scrap"]["below_bench_m"]), "rules": list(SAFETY_RULES)},
+                       "off_bench_m": float(self.cfg["scrap"]["below_bench_m"]), "violation_score_factor": keep,
+                       "rules": [t.format(keep_pct=format(100.0 * keep, ".0f")) for t in SAFETY_RULES]},
         }
 
     # ------------------------------------------------------------------ cameras (render_twin's pipeline)

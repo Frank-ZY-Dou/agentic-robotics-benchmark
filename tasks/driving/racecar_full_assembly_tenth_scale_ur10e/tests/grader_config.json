@@ -8,7 +8,7 @@
  "camera_budget_frames": 450,
  "cpu_cap_factor": 4.0,
  "damage": {
-  "note": "hard rule (zeroes the episode): a loose unit pressed on the environment or another unit above part_force_N for `ticks` consecutive 10 ms control ticks (0.2 s), the normal forces summed per (unit, body it presses on), the pads' contacts excluded (cell.py watch)",
+  "note": "a safety violation (the episode goes on and keeps scoring.safety_violation_factor of its stage score): a loose unit pressed on the environment or another unit above part_force_N for `ticks` consecutive 10 ms control ticks (0.2 s), the normal forces summed per (unit, body it presses on), the pads' contacts excluded (cell.py watch)",
   "part_force_N": 150.0,
   "ticks": 20
  },
@@ -204,7 +204,7 @@
  },
  "runner_account": "nobody",
  "safety": {
-  "note": "robot_force_N: a robot link other than the 2F-85's four pad boxes pressing on one body harder than this (normal forces summed over that pair's contacts) zeroes the episode; part_speed_m_s: a loose unit whose centre of mass is faster than this is scrapped (it and what is fastened on it count nothing; the episode goes on)",
+  "note": "robot_force_N: a robot link other than the 2F-85's four pad boxes pressing on one body harder than this (normal forces summed over that pair's contacts) is a safety violation (the episode goes on and keeps scoring.safety_violation_factor of its stage score); part_speed_m_s: a loose unit whose centre of mass is faster than this is scrapped (it and what is fastened on it count nothing; the episode goes on)",
   "part_speed_m_s": 3.0,
   "robot_force_N": 30.0
  },
@@ -214,7 +214,8 @@
  },
  "scoring": {
   "count_subassembly": true,
-  "note": "lever L11: true = a compute module or a LiDAR fastened on the deck assembly counts wherever the deck assembly is, unless the deck assembly is scrapped; false = only mates whose carrier chain is fastened to the chassis"
+  "note": "lever L11: true = a compute module or a LiDAR fastened on the deck assembly counts wherever the deck assembly is, unless the deck assembly is scrapped; false = only mates whose carrier chain is fastened to the chassis. safety_violation_factor: the share of its stage score that an episode with a safety violation keeps (either hard rule: safety.robot_force_N, or damage.part_force_N for damage.ticks), one factor per episode however many violations, the episode going on (the owner's decision of 2026-11-16, DESIGN v1.7 section 7; 0 = the rule of v1.0-v1.6, the episode zeroed); verify.py scores with it and the agent's documents print it",
+  "safety_violation_factor": 0.3
  },
  "scrap": {
   "below_bench_m": 0.05,
