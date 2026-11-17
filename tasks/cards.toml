@@ -83,6 +83,12 @@ summary = "Assemble a six-servo desktop arm from its printed parts and servos wi
 platforms = ["arm"]
 stages = ["assembly"]
 
+[robotic_arm_motion_controller_from_docs]
+title = "Write a desktop arm's motion controller"
+summary = "Write the motion controller of a six-servo desktop arm from its vendor documents: it must reach, place and dispense in three desktop cells without a contact, on units it has never run on."
+platforms = ["arm"]
+stages = ["control"]
+
 [robotic_arm_requirements_replica_from_photos]
 title = "Specify upgraded replicas of a desktop arm"
 summary = "Specify ten upgraded replicas of a six-servo desktop arm that is no longer on the bench, from its photos and records, down to a bill of materials."
