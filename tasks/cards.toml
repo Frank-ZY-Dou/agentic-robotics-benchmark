@@ -29,6 +29,12 @@ summary = "Specify seven upgraded replicas of a two-arm robot that has left the 
 platforms = ["arm"]
 stages = ["requirements"]
 
+[kitchen_appliance_tending]
+title = "Tend unfamiliar kitchen appliances with a Panda"
+summary = "A fixed Franka Panda must switch and set cooktop burners, ovens and microwaves it has never seen, from camera images and its wrist force sensor, after a single lab trial on one of them."
+platforms = ["arm"]
+stages = ["behavior"]
+
 [novel_object_6dof_grasp_detection]
 title = "Detect grasps on objects never seen before"
 summary = "Improve a 6-DoF parallel-jaw grasp detector that works from one RGB-D frame of a cluttered table, scored on objects it has never seen."
