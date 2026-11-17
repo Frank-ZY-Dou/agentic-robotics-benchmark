@@ -19,8 +19,12 @@ This page covers what happens in this repository.
    string (lowercase letters, digits, underscores; the engine accepts `^[a-z0-9][a-z0-9_-]*$`).
    A retired task keeps its name; never reuse one.
 3. Pick its platform, one of the keys in [`tasks/platforms.json`](tasks/platforms.json):
-   `arm`, `hand`, `quadruped`, `humanoid`, `uav`, `driving`, `underwater`, `space`, `soft`,
-   `surgical`, `swarm`, `subsystems`. A task that fits none needs a maintainer first.
+   `arm`, `hand`, `quadruped`, `humanoid`, `uav`, `driving`, `ground`, `underwater`, `space`,
+   `soft`, `surgical`, `swarm`, `subsystems`. The most specific one wins: a legged robot is
+   `quadruped` or `humanoid`; a car-like vehicle whose task is the driving itself, on a road or
+   a track and at any scale, is `driving`; any other wheeled or tracked ground robot (an AMR or
+   AGV, a UGV, a rover, a wheeled mobile manipulator) is `ground`. A task that fits none needs
+   a maintainer first. The other platforms a task involves go in its card (step 9).
 
 You need Docker and the ALE engine at the commit this repository pins: the `vendor/ale`
 submodule (upstream `main` moves on; a task is gated on the pinned commit). Clone with the
@@ -49,6 +53,12 @@ followed by the same string. What each file is for, and what the robotics domain
 beyond the engine's own specs, is in [`templates/README.md`](templates/README.md). The long
 form of the whole path, including the anchor bootstrap, is
 [`docs/contributing-a-task.md`](docs/contributing-a-task.md).
+
+Keep the template's `[verifier] environment_mode = "separate"`: the grader then scores in a
+fresh sandbox the agent never touched, with only your declared `artifacts` restored, instead
+of as root beside the agent's files (where a program planted on root's PATH would run as root
+before the grader). Stage anything verify needs in `tests/` or an artifact — `setup.sh` does
+not run in a separate verifier.
 
 Gate it from `vendor/ale` until both lines are green:
 
