@@ -606,11 +606,13 @@ order of §13 (§5's platform list predates both).
   AGV / UGV, rovers, wheeled mobile manipulators). The key `driving` is gone:
   `driving_safety_supervisor` moves to `tasks/ground/driving_safety_supervisor/` with
   `[metadata].platform = "ground"`, and its card's platforms are `["ground"]`. The new
-  platform value changes the task's `spec_hash` and `content_digest`; `identity-history.json`
-  keeps its old records, and the new identity is exported after the merge. Its asset list's
-  `# prefix:` must name the task's folder (`scripts/task_assets.py check`), so the task's 19
-  files move to `tasks/ground/driving_safety_supervisor/payload/` on the asset dataset and the
-  list is re-pinned to that commit (as for the rename in #65).
+  platform value and the new asset pin change the task's `spec_hash` and `content_digest`
+  (the slug is unchanged); `identity-history.json` keeps its old records and carries the new
+  one, exported from a clean work tree of the branch. An asset list's `# prefix:` must name the
+  task's folder (`scripts/task_assets.py check`), so the task's 19 files were copied server
+  side to `tasks/ground/driving_safety_supervisor/payload/` on the asset dataset (commit
+  `4c7c4d8b`, every sha256 unchanged) and the list is re-pinned there. The old folder stays on
+  the dataset until this merges; then it is deleted and the dataset card's rows are fixed.
 - `tasks/arm/object_finding_and_organizing_on_messy_desk/task.toml` still lists `driving` in a
   comment; it is left as it is, since editing it would change that task's identity.
 
