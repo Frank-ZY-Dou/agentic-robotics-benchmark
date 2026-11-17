@@ -44,7 +44,8 @@ The steps (GRADER_SPEC 3.1-3.8):
              core and is consistent (axis within 1 deg and 0.5 mm of the core's output axis; the child's parts rest on
              the parent's or on the core: gap <= 0.2 mm) and its lower link carries exactly one foot pad;
   alignment  6 DoF, agent world -> robot frame: a Kabsch seed on the valid legs' HAA cores (output centre and the point
-             50 mm along +z, matched by leg; the best-supported pair of non-collinear legs, ties broken by the body
+             50 mm along the output axis, matched by leg, that point on whichever side fits: a unit mounted the other way
+             round does not turn the robot; the best-supported pair of non-collinear legs, ties broken by the body
              parts' fit), else on the body parts' centroids; refined by the restricted point-to-plane ICP of the agent's
              body parts onto the reference's (15 mm / 15 deg from the seed, fixed sample seeds);
   writer     links world-aligned at q = 0 in the aligned frame, a link's origin = its driving core's output centre
@@ -1150,21 +1151,40 @@ def _align(ctx):
     seed = None
     cands = {}
     legs_h = sorted(haa)
+
+    def axis_pts(l, sg):
+        """The leg's output centre and its axis point on side sg (+1: along the unit's +z, -1: against it)."""
+        a = haa[l][0]
+        return np.vstack([a[0], a[0] + sg * (a[1] - a[0])])
+
+    def fit(T, l):
+        """(residual, side) of leg l under T with its axis point on the side that fits: a unit mounted the other way
+        round (its +z reversed: the joint's sense flips, which its own items price) must not turn the whole robot
+        (review of round 2, 2026-10-29: two reversed units seeded a half-turn of the body)."""
+        return min((float(np.max(np.linalg.norm(_apply(T, axis_pts(l, q)) - haa[l][1], axis=1))), q) for q in (1.0, -1.0))
     for l1, l2 in itertools.combinations(legs_h, 2):
-        Pa = np.vstack([haa[l1][0], haa[l2][0]])
-        Pg = np.vstack([haa[l1][1], haa[l2][1]])
-        if _collinear(Pa) or _collinear(Pg):
-            continue
-        T = kabsch(Pa, Pg)
-        inl = tuple(l for l in legs_h if float(np.max(np.linalg.norm(_apply(T, haa[l][0]) - haa[l][1], axis=1))) <= s["haa_inlier_mm"])
-        if len(inl) < 2 or inl in cands:
-            continue
-        Pa = np.vstack([haa[l][0] for l in inl])
-        Pg = np.vstack([haa[l][1] for l in inl])
-        if _collinear(Pa) or _collinear(Pg):
-            continue
-        Ti = kabsch(Pa, Pg)
-        cands[inl] = (Ti, float(np.sqrt(np.mean(np.sum((_apply(Ti, Pa) - Pg) ** 2, axis=1)))))
+        for s1, s2 in itertools.product((1.0, -1.0), repeat=2):
+            Pa = np.vstack([axis_pts(l1, s1), axis_pts(l2, s2)])
+            Pg = np.vstack([haa[l1][1], haa[l2][1]])
+            if _collinear(Pa) or _collinear(Pg):
+                continue
+            T = kabsch(Pa, Pg)
+            side = {}
+            for l in legs_h:
+                r, q = fit(T, l)
+                if r <= s["haa_inlier_mm"]:
+                    side[l] = q
+            inl = tuple(sorted(side))
+            if len(inl) < 2:
+                continue
+            Pa = np.vstack([axis_pts(l, side[l]) for l in inl])
+            Pg = np.vstack([haa[l][1] for l in inl])
+            if _collinear(Pa) or _collinear(Pg):
+                continue
+            Ti = kabsch(Pa, Pg)
+            r = float(np.sqrt(np.mean(np.sum((_apply(Ti, Pa) - Pg) ** 2, axis=1))))
+            if inl not in cands or body_rms(Ti) < body_rms(cands[inl][0]):    # the same legs both ways: the body decides
+                cands[inl] = (Ti, r)
     if cands:
         m = max(len(k) for k in cands)
         best = sorted([(body_rms(T), k, T, r) for k, (T, r) in cands.items() if len(k) == m], key=lambda x: (x[0], x[1]))
@@ -1211,7 +1231,7 @@ def _align(ctx):
                   n_dst=int(len(gpts)))
         ctx.warnings.append("alignment: too few body samples for the ICP refinement (seed used as is)")
     # per-leg HAA residual after the alignment (informative)
-    st["haa_residual_mm"] = {l: float(np.max(np.linalg.norm(_apply(T, haa[l][0]) - haa[l][1], axis=1))) for l in legs_h}
+    st["haa_residual_mm"] = {l: fit(T, l)[0] for l in legs_h}
     st["T"] = _mat_list(T)
     ctx.T = T
     ctx.align = st
