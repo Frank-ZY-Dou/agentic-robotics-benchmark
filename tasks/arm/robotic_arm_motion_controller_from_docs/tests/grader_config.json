@@ -1,6 +1,5 @@
 {
  "format": "motion-grader-config/1",
- "acceptances": 2,
  "runner_account": "nobody",
  "max_submission_mb": 80,
  "on_time_min": 0.9,

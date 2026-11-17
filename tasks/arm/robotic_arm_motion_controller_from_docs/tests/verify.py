@@ -16,8 +16,7 @@ the task image into which the engine restored only the submission (root-owned). 
   3. the oracle token: controller/oracle_token whose sha256 equals hidden/oracle_token.sha256 adds the truth payloads
      (stat privileged_mode); a wrong token is ignored (stat oracle_token_mismatch);
   4. runs the fixed hidden set (tests/hidden/scenarios: three scenarios, a unit and its three cells each, kept by the
-     pre-registered selection; sha256 and the grader code's digest checked; without the folder, `acceptances` runs on
-     units and cells drawn from 63-bit OS-entropy seeds) through `arm.motion_ctl.grade.Acceptance` (shelf, bins,
+     pre-registered selection; sha256 and the grader code's digest checked; a missing set is a task error) through `arm.motion_ctl.grade.Acceptance` (shelf, bins,
      dispense, about 14 jobs each; a contact fails the cell), the controller as `nobody` under the client's no-network
      filter, from a read-only copy of the submission (`arm.motion_ctl.wire.Runner`);
   5. reward = contract_ok x the mean over the runs of the episode score (`arm.motion_ctl.metrics.episode`: 0.5 reach +
@@ -140,13 +139,14 @@ SCENARIO_DIR = os.path.join(STAGE_DIR, "hidden", "scenarios")
 
 
 def hidden_scenarios():
-    """The fixed hidden set (tests/hidden/scenarios/manifest.json: each file's sha256 checked; a scenario made with
-    other grader code is a task error, scenarios.ScenarioStale), or [] when the folder has none."""
+    """The fixed hidden set (tests/hidden/scenarios/manifest.json: each file's sha256 checked). A missing or empty
+    set, a file that does not match, or a scenario made with other grader code (scenarios.ScenarioStale) is a task
+    error: the exception propagates and no verdict is written."""
     man = os.path.join(SCENARIO_DIR, "manifest.json")
-    if not os.path.isfile(man):
-        return []
     with open(man) as fh:
         manifest = json.load(fh)
+    if not manifest.get("kept"):
+        raise RuntimeError("the hidden set is empty")
     out = []
     for ent in manifest["kept"]:
         path = os.path.join(SCENARIO_DIR, ent["file"])
@@ -283,11 +283,8 @@ def make_factory(cfg, tag, counters):
         record_dir(LOGS)
         r = W.Runner(program_source(), root, CLIENT, user=cfg.get("runner_account", "nobody"),
                      stderr_path=os.path.join(LOGS, "%s_%d.stderr.log" % (tag, counters["starts"])))
-        try:
-            ok, info = r.start()
-        except RuntimeError as e:
-            return Dead(e)
-        if not ok:
+        ok, info = r.start()       # a RuntimeError here (no runner account, no runuser, the uid check) is the task's
+        if not ok:                 # failure, not the controller's: it propagates and no verdict is written
             counters["start_failures"] += 1
             r.close()
             return Dead(info)
@@ -384,17 +381,13 @@ def _main_locked(cfg, rewards, metrics):
         write_verdict(rewards, metrics)
         return
     scen = hidden_scenarios()
-    n = len(scen) if scen else int(cfg.get("acceptances", 2))
-    metrics["hidden_set"] = 1.0 if scen else 0.0
+    n = len(scen)
+    metrics["hidden_set"] = float(n)
     runs = []
     counters = {"starts": 0, "start_failures": 0, "uid": None, "runners": []}
     for i in range(n):
         log("[grader] acceptance %d/%d" % (i + 1, n))
-        if scen:
-            acc = G.Acceptance(DESIGN, scenario=scen[i], log=log, privileged=privileged)
-        else:                                        # no fixed set (development): a unit and cells from OS entropy
-            seed = int.from_bytes(os.urandom(8), "little") & ((1 << 63) - 1)
-            acc = G.Acceptance(DESIGN, seed=seed, log=log, privileged=privileged)
+        acc = G.Acceptance(DESIGN, scenario=scen[i], log=log, privileged=privileged)
         net_c = netaudit.NetCounters()
         acct = runner.runner_account(cfg.get("runner_account", "nobody")) if os.getuid() == 0 else None
         if acct:
@@ -437,7 +430,10 @@ def _main_locked(cfg, rewards, metrics):
     gate = 1.0 if all(gates.values()) else 0.0
     rewards["contract_ok"] = gate
     vals = [float(r["scores"]["overall"]) for r in runs]
-    rewards["acceptance_score"] = float(max(0.0, min(1.0, gate * float(np.mean(vals)))))
+    mean = float(np.mean(vals))
+    if not math.isfinite(mean):                # never through the clamp: min(1.0, nan) is 1.0
+        raise RuntimeError("a run's score is not finite: {}".format(vals))
+    rewards["acceptance_score"] = float(max(0.0, min(1.0, gate * mean)))
     for i, r in enumerate(runs):
         for k in ("overall", "reach", "path", "infeasibility"):
             metrics["run%d_%s" % (i + 1, k)] = float(r["scores"][k])

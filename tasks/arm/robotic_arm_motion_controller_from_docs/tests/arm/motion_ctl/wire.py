@@ -170,6 +170,8 @@ class Runner(object):
         try:
             rep = json.loads(line)
         except ValueError:
+            rep = None
+        if not isinstance(rep, dict):
             self._kill("protocol at import")
             return False, {"error": "protocol"}
         self._find_leaf()
@@ -263,6 +265,8 @@ class Runner(object):
         try:
             rep = json.loads(line)
         except ValueError:
+            rep = None
+        if not isinstance(rep, dict):              # not JSON, or JSON that is not an object (a stray line on fd 1)
             self._kill("protocol")
             return "protocol", None, cpu_used, wall
         if not rep.get("ok"):

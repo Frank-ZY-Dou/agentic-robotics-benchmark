@@ -106,6 +106,8 @@ def job_score(rec):
         parts["smoothness"] = L(rec["peak_mm"], BANDS["path_peak_mm"])
     q = parts["accuracy"] * (0.6 + 0.2 * parts["time"] + 0.2 * parts["smoothness"])
     s = parts["clearance"] * parts["conditioning"] * q
+    if not math.isfinite(s):                   # a non-finite measurement (0 x nan is nan) scores 0, never more
+        s = 0.0
     return float(s), parts
 
 

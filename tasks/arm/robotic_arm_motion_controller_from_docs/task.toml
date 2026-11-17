@@ -32,7 +32,7 @@ mode = "atomic"
 stage = "control"
 stage_key = "control"
 info_tier = 1
-hidden_instance = "per-acceptance OS-entropy unit of design H_asm2"
+hidden_instance = "a fixed hidden set of three units, each with its three cells and jobs (tests/hidden/scenarios)"
 practice_instances = []
 given_from = {stage = "assembly", adapter = "the assembled arm's documents"}
 entry = "design-first"
@@ -44,16 +44,17 @@ compute = "cpu"
 observation_tier = "proprioceptive"
 randomisation = ["unit (calibration-record error, geometry, masses, servo dynamics)", "cells (layout, objects, survey error)", "jobs", "clamped part (mass, centre)"]
 expert_time_hours = 40
-supersedes = ["arm_commission_hidden_arm_unit"]
 tags = ["control", "motion-planning", "inverse-kinematics", "collision-avoidance", "singularity", "mujoco", "servo", "code-as-policy", "info-tier", "oracle-token", "no-practice"]
 
 [environment]
 cpus = 4
 memory_mb = 8192
 
-# [agent] timeout_sec: 6 h; an episode cut by this limit is not graded. [verifier] timeout_sec: two acceptance runs
-# (job generation ~2-3 min and ~45 jobs each; the controller's budgets cap a slow one at about 45 x (20 s plan + the
-# job's cap)), with margin.
+# [agent] timeout_sec: 6 h; an episode cut by this limit is not graded. [verifier] timeout_sec: three runs of the
+# fixed hidden set (nothing is generated at verify), about 126 jobs in 9 cells. Measured: the oracle's whole verify
+# takes 37 s of wall time. A controller that uses its full CPU budgets (60 s per setup, 20 s per plan) needs about
+# 9 x 60 + 126 x 20 s = 51 min plus the motion; one that also sits at the wall caps (120 s per setup, 60 s per plan)
+# needs about 9 x 120 + 126 x 60 s = 2.4 h plus the motion (under 10 min). 4 h covers both with margin.
 [agent]
 timeout_sec = 21600
 network_mode = "no-network"
@@ -62,7 +63,7 @@ network_mode = "no-network"
 # touched, with only the declared artifact (the submission) restored into it. environment/setup/setup.sh does not run
 # there: tests/test.sh builds the grader's root-owned copy of the givens itself.
 [verifier]
-timeout_sec = 7200
+timeout_sec = 14400
 environment_mode = "separate"
 
 [verifier.environment]
