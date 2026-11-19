@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libosmesa6 libg
     && rm -rf /var/lib/apt/lists/*
 
 # ---- task assets: fetched at the dataset commit pinned in assets.sha256, checked file by file (docs/task-assets.md):
-# the robot model, the 6 labelled recordings (two videos and the joint angles) and the 24 test recordings (two videos)
+# the robot model, the 6 labelled recordings (the video and the joint angles) and the 24 test recordings (the video)
 COPY fetch_assets.py assets.sha256 /opt/task-assets/
 RUN python3 /opt/task-assets/fetch_assets.py /opt/task-assets/assets.sha256 /opt/task-assets/payload \
     && chmod -R a+rX /opt/task-assets
